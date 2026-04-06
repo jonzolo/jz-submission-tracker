@@ -193,7 +193,7 @@
 const SUPABASE_URL = 'https://gprrncvcumlmntskilxf.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwcnJuY3ZjdW1sbW50c2tpbHhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0ODIxNDYsImV4cCI6MjA5MTA1ODE0Nn0.xujYVxSG3p98odbm0NmflE6Yedoa6TTNywlUnOd0jGs';
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const ALL_STATUSES = [
   { value: 'NEW', label: 'New', color: '#0969da' },
@@ -224,7 +224,7 @@ async function init() {
   });
 
   // Real-time subscription
-  supabase
+  sb
     .channel('submissions-changes')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'submissions' }, (payload) => {
       loadData(); // Refresh on any change
@@ -233,7 +233,7 @@ async function init() {
 }
 
 async function loadData() {
-  const { data, error } = await supabase
+  const { data, error } = await sb
     .from('submissions')
     .select('*')
     .order('date_received', { ascending: false });
@@ -333,7 +333,7 @@ async function changeStatus(id, newStatus) {
   renderTable();
   showToast('Saving: ' + sub.brand + ' -> ' + newStatus);
 
-  const { error } = await supabase
+  const { error } = await sb
     .from('submissions')
     .update({ status: newStatus, updated_at: new Date().toISOString() })
     .eq('id', id);
