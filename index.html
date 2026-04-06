@@ -193,6 +193,8 @@
 const SUPABASE_URL = 'https://gprrncvcumlmntskilxf.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwcnJuY3ZjdW1sbW50c2tpbHhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0ODIxNDYsImV4cCI6MjA5MTA1ODE0Nn0.xujYVxSG3p98odbm0NmflE6Yedoa6TTNywlUnOd0jGs';
 
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 const ALL_STATUSES = [
   { value: 'NEW', label: 'New', color: '#0969da' },
   { value: 'ACTIVE', label: 'Active', color: '#9a6700' },
