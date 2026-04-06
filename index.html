@@ -189,7 +189,7 @@
 <div class="toast" id="toast">Status updated</div>
 
 <script>
-// ââ CONFIG (will be set after Supabase project is created) ââ
+// -- CONFIG (will be set after Supabase project is created) --
 const SUPABASE_URL = 'https://gprrncvcumlmntskilxf.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwcnJuY3ZjdW1sbW50c2tpbHhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0ODIxNDYsImV4cCI6MjA5MTA1ODE0Nd0ueHVqWVZ4U0czcDk4b2RibTBObWZsRTZZZWRvYTZUVE55d2xVbk9kMGpHczsK
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -330,7 +330,7 @@ async function changeStatus(id, newStatus) {
   sub.status = newStatus; // Optimistic update
   renderStats();
   renderTable();
-  showToast('Saving: ' + sub.brand + ' â ' + newStatus);
+  showToast('Saving: ' + sub.brand + ' -> ' + newStatus);
 
   const { error } = await supabase
     .from('submissions')
@@ -342,9 +342,9 @@ async function changeStatus(id, newStatus) {
     sub.status = oldStatus; // Rollback
     renderStats();
     renderTable();
-    showToast('Error saving â reverted');
+    showToast('Error saving -- reverted');
   } else {
-    showToast('Saved: ' + sub.brand + ' â ' + newStatus);
+    showToast('Saved: ' + sub.brand + ' -> ' + newStatus);
   }
 }
 
@@ -381,8 +381,8 @@ function renderTable() {
         </div>
       </td>
       <td class="date-cell">${s.date_received || ''}</td>
-      <td class="date-cell">${s.shoot_dates || 'â'}</td>
-      <td>${s.budget || 'â'}</td>
+      <td class="date-cell">${s.shoot_dates || '--'}</td>
+      <td>${s.budget || '--'}</td>
       <td class="${dsubCls}">${s.dsub || 'NO'}</td>
       <td class="notes-cell">${s.notes || ''}</td>
     </tr>`;
