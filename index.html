@@ -284,13 +284,11 @@ function renderStats() {
   const active = submissions.filter(s => isActive(s.status)).length;
   const won = submissions.filter(s => isWon(s.status)).length;
   const lost = submissions.filter(s => isLost(s.status)).length;
-  const declined = submissions.filter(s => isDeclined(s.status)).length;
   document.getElementById('statsBar').innerHTML = `
     <div class="stat total"><div class="num">${submissions.length}</div><div class="label">Total</div></div>
     <div class="stat hot"><div class="num">${active}</div><div class="label">Active Pipeline</div></div>
     <div class="stat won"><div class="num">${won}</div><div class="label">Won</div></div>
     <div class="stat lost"><div class="num">${lost}</div><div class="label">Lost</div></div>
-    <div class="stat lost"><div class="num">${declined}</div><div class="label">Declined</div></div>
   `;
 }
 
