@@ -50,6 +50,8 @@
   .stat .num { font-size: 28px; font-weight: 700; }
   .stat .label { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
   .stat.hot .num { color: var(--orange); }
+  .stat.choose .num { color: #b45309; }
+  .stat.choose { border-color: #f59e0b; background: #fffbeb; }
   .stat.won .num { color: var(--green); }
   .stat.lost .num { color: var(--red); }
   .stat.total .num { color: var(--accent); }
@@ -64,6 +66,8 @@
   }
   .filter-btn:hover { border-color: var(--accent); color: var(--text); }
   .filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+  .filter-btn[data-filter="choose"] { border-color: #f59e0b; color: #b45309; }
+  .filter-btn[data-filter="choose"].active { background: #f59e0b; color: #fff; border-color: #f59e0b; }
   .search-box {
     background: var(--bg); border: 1px solid var(--border); color: var(--text);
     padding: 5px 14px; border-radius: 6px; font-size: 13px; width: 200px; margin-left: auto;
@@ -85,6 +89,8 @@
   tr:hover { background: rgba(9,105,218,0.03); }
   tr.row-declined td { opacity: 0.4; }
   tr.row-declined:hover td { opacity: 0.75; }
+  tr.row-choose td { background: rgba(254, 243, 199, 0.35); }
+  tr.row-choose:hover td { background: rgba(254, 243, 199, 0.6); }
 
   .badge {
     display: inline-block; padding: 2px 10px; border-radius: 12px;
@@ -93,10 +99,19 @@
   }
   .badge:hover { box-shadow: 0 0 0 2px rgba(9,105,218,0.3); }
   .badge-new { background: #ddf4ff; color: #0969da; }
+  .badge-choose {
+    background: #fef3c7; color: #92400e; border: 1px solid #f59e0b;
+    animation: choose-pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes choose-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0.55); }
+    50% { box-shadow: 0 0 0 5px rgba(245,158,11,0); }
+  }
   .badge-active { background: #fff8c5; color: #9a6700; }
   .badge-submitted { background: #fbefff; color: #8250df; }
   .badge-chemistry { background: #ffeff7; color: #bf3989; }
   .badge-treatment { background: #fff1e5; color: #bc4c00; }
+  .badge-pitching { background: #fbefff; color: #6f42c1; }
   .badge-won { background: #dafbe1; color: #1a7f37; }
   .badge-production { background: #dafbe1; color: #116329; }
   .badge-lost { background: #ffebe9; color: #cf222e; }
@@ -107,10 +122,14 @@
   .dsub-yes { color: var(--red); font-weight: 600; }
   .dsub-potential { color: var(--yellow); }
   .dsub-no { color: var(--text-dim); }
-  .company-tag {
-    font-size: 11px; color: var(--text-dim); background: var(--surface2);
-    padding: 1px 8px; border-radius: 4px; white-space: nowrap;
+
+  /* Color-coded company pill — tinted bg + matching dark text */
+  .company-pill {
+    display: inline-block; font-size: 11px; font-weight: 600;
+    padding: 2px 10px; border-radius: 12px; white-space: nowrap;
+    letter-spacing: 0.2px;
   }
+
   .notes-cell { max-width: 320px; font-size: 13px; color: var(--text-dim); line-height: 1.4; }
   .brand-name { font-weight: 600; }
   .date-cell { white-space: nowrap; color: var(--text-dim); font-size: 13px; }
@@ -120,7 +139,7 @@
     position: absolute; top: 100%; left: 0; z-index: 100;
     background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
     box-shadow: 0 8px 24px rgba(0,0,0,0.12); padding: 4px 0;
-    min-width: 200px; margin-top: 4px; display: none;
+    min-width: 220px; margin-top: 4px; display: none;
   }
   .status-dropdown.open { display: block; }
   .status-option {
@@ -162,6 +181,7 @@
 <div class="filters">
   <label>Filter:</label>
   <button class="filter-btn active" data-filter="active">Active</button>
+  <button class="filter-btn" data-filter="choose">Choose!</button>
   <button class="filter-btn" data-filter="won">Won</button>
   <button class="filter-btn" data-filter="lost">Lost</button>
   <button class="filter-btn" data-filter="declined">Declined</button>
@@ -192,7 +212,7 @@
 <div class="toast" id="toast">Status updated</div>
 
 <script>
-// ── CONFIG (will be set after Supabase project is created) ──
+// ── CONFIG ──
 const SUPABASE_URL = 'https://gprrncvcumlmntskilxf.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwcnJuY3ZjdW1sbW50c2tpbHhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0ODIxNDYsImV4cCI6MjA5MTA1ODE0Nn0.xujYVxSG3p98odbm0NmflE6Yedoa6TTNywlUnOd0jGs';
 
@@ -200,8 +220,10 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const ALL_STATUSES = [
   { value: 'NEW', label: 'New', color: '#0969da' },
+  { value: 'CHOOSE', label: 'Choose! (parallel sub)', color: '#f59e0b' },
   { value: 'ACTIVE', label: 'Active', color: '#9a6700' },
   { value: 'SUBMITTED', label: 'Submitted', color: '#8250df' },
+  { value: 'PITCHING', label: 'Pitching', color: '#6f42c1' },
   { value: 'CHEMISTRY CALL', label: 'Chemistry Call', color: '#bf3989' },
   { value: 'TREATMENT DELIVERED', label: 'Treatment Delivered', color: '#bc4c00' },
   { value: 'WON', label: 'Won', color: '#1a7f37' },
@@ -211,6 +233,60 @@ const ALL_STATUSES = [
   { value: 'DECLINED', label: 'Declined', color: '#656d76' },
   { value: 'ARCHIVED', label: 'Archived', color: '#57606a' },
 ];
+
+// ── COMPANY COLOR MAP ──
+// Tinted bg + dark text in same family. Hand-picked for known reps;
+// falls back to a deterministic hash → palette index for new companies.
+const COMPANY_COLORS = {
+  // Hues spaced around the wheel; 3 dark-bg "POP" pills for outlier distinction.
+  'Curveball':              { bg: '#fca5a5', fg: '#7f1d1d' },  //   0° red
+  'WTBR':                   { bg: '#fdba74', fg: '#9a3412' },  //  20° peach
+  'Broderville':            { bg: '#fb923c', fg: '#ffffff' },  //  30° saturated orange (white text)
+  'Reform School TV':       { bg: '#d6b8a0', fg: '#5c2e0a' },  //  35° sepia/brown
+  'Reform School':          { bg: '#d6b8a0', fg: '#5c2e0a' },
+  "O'Brien Co":             { bg: '#fde047', fg: '#713f12' },  //  55° yellow
+  'Lair':                   { bg: '#bef264', fg: '#365314' },  //  85° chartreuse
+  'Test Tube Production':   { bg: '#a3e635', fg: '#3f6212' },  // 100° lime
+  'Durable Goods':          { bg: '#22c55e', fg: '#ffffff' },  // 142° saturated green (white text — POPS)
+  'Native Content':         { bg: '#0d9488', fg: '#f0fdfa' },  // 175° deep teal (white text — POPS)
+  'Someplace Nice':         { bg: '#67e8f9', fg: '#155e75' },  // 190° cyan
+  'Directors Network':      { bg: '#93c5fd', fg: '#1e3a8a' },  // 215° sky blue
+  'Departure':              { bg: '#a5b4fc', fg: '#312e81' },  // 235° indigo
+  'Electra Filmworks':      { bg: '#c4b5fd', fg: '#4c1d95' },  // 260° violet
+  'LEFT':                   { bg: '#d8b4fe', fg: '#581c87' },  // 280° purple
+  'FreshFace':              { bg: '#f0abfc', fg: '#701a75' },  // 295° fuchsia
+  'Freshface':              { bg: '#f0abfc', fg: '#701a75' },
+  'Sharon & Perry':         { bg: '#fda4af', fg: '#881337' },  // 350° rose
+  // Distinctive non-hue / dark POP pills
+  'Eightfold':              { bg: '#cbd5e1', fg: '#1e293b' },  // slate gray
+  '8th Street':             { bg: '#374151', fg: '#f9fafb' },  // dark gray (white text — POPS)
+  '8th Street Productions': { bg: '#374151', fg: '#f9fafb' },
+  'A Fresh Face in Hell':   { bg: '#991b1b', fg: '#fef2f2' },  // dark red (white text — POPS)
+};
+
+const FALLBACK_PALETTE = [
+  { bg: '#fca5a5', fg: '#7f1d1d' },  // red
+  { bg: '#fdba74', fg: '#9a3412' },  // peach
+  { bg: '#fde047', fg: '#713f12' },  // yellow
+  { bg: '#bef264', fg: '#365314' },  // chartreuse
+  { bg: '#22c55e', fg: '#ffffff' },  // green
+  { bg: '#0d9488', fg: '#f0fdfa' },  // teal
+  { bg: '#67e8f9', fg: '#155e75' },  // cyan
+  { bg: '#93c5fd', fg: '#1e3a8a' },  // sky
+  { bg: '#a5b4fc', fg: '#312e81' },  // indigo
+  { bg: '#c4b5fd', fg: '#4c1d95' },  // violet
+  { bg: '#f0abfc', fg: '#701a75' },  // fuchsia
+  { bg: '#fda4af', fg: '#881337' },  // rose
+  { bg: '#cbd5e1', fg: '#1e293b' },  // slate
+];
+
+function companyColor(name) {
+  if (!name) return { bg: 'var(--surface2)', fg: 'var(--text-dim)' };
+  if (COMPANY_COLORS[name]) return COMPANY_COLORS[name];
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return FALLBACK_PALETTE[h % FALLBACK_PALETTE.length];
+}
 
 let submissions = [];
 let currentFilter = 'active';
@@ -230,7 +306,7 @@ async function init() {
   sb
     .channel('submissions-changes')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'submissions' }, (payload) => {
-      loadData(); // Refresh on any change
+      loadData();
     })
     .subscribe();
 }
@@ -258,8 +334,10 @@ async function loadData() {
 function getBadgeClass(status) {
   const s = (status || '').toUpperCase();
   if (s === 'NEW') return 'badge-new';
+  if (s === 'CHOOSE') return 'badge-choose';
   if (s === 'ACTIVE') return 'badge-active';
   if (s === 'SUBMITTED') return 'badge-submitted';
+  if (s === 'PITCHING') return 'badge-pitching';
   if (s.includes('CHEMISTRY')) return 'badge-chemistry';
   if (s.includes('TREATMENT')) return 'badge-treatment';
   if (s === 'WON' || s === 'WON / IN PRODUCTION') return 'badge-won';
@@ -271,9 +349,10 @@ function getBadgeClass(status) {
   return 'badge-active';
 }
 
+function isChoose(s) { return (s||'').toUpperCase() === 'CHOOSE'; }
 function isActive(s) {
   const u = (s||'').toUpperCase();
-  return ['NEW','ACTIVE','SUBMITTED','CHEMISTRY CALL','TREATMENT DELIVERED','PITCHING'].includes(u);
+  return ['NEW','CHOOSE','ACTIVE','SUBMITTED','CHEMISTRY CALL','TREATMENT DELIVERED','PITCHING'].includes(u);
 }
 function isWon(s) { const u = (s||'').toUpperCase(); return u === 'WON' || u === 'WON / IN PRODUCTION' || u === 'IN PRODUCTION'; }
 function isLost(s) { const u = (s||'').toUpperCase(); return u === 'LOST'; }
@@ -282,11 +361,16 @@ function isArchived(s) { const u = (s||'').toUpperCase(); return u === 'ARCHIVED
 
 function renderStats() {
   const active = submissions.filter(s => isActive(s.status)).length;
+  const choose = submissions.filter(s => isChoose(s.status)).length;
   const won = submissions.filter(s => isWon(s.status)).length;
   const lost = submissions.filter(s => isLost(s.status)).length;
+  const chooseCard = choose > 0
+    ? `<div class="stat choose"><div class="num">${choose}</div><div class="label">Choose!</div></div>`
+    : '';
   document.getElementById('statsBar').innerHTML = `
     <div class="stat total"><div class="num">${submissions.length}</div><div class="label">Total</div></div>
     <div class="stat hot"><div class="num">${active}</div><div class="label">Active Pipeline</div></div>
+    ${chooseCard}
     <div class="stat won"><div class="num">${won}</div><div class="label">Won</div></div>
     <div class="stat lost"><div class="num">${lost}</div><div class="label">Lost</div></div>
   `;
@@ -295,6 +379,7 @@ function renderStats() {
 function filterSubs() {
   let subs = [...submissions];
   if (currentFilter === 'active') subs = subs.filter(s => isActive(s.status));
+  else if (currentFilter === 'choose') subs = subs.filter(s => isChoose(s.status));
   else if (currentFilter === 'won') subs = subs.filter(s => isWon(s.status));
   else if (currentFilter === 'lost') subs = subs.filter(s => isLost(s.status));
   else if (currentFilter === 'declined') subs = subs.filter(s => isDeclined(s.status));
@@ -308,7 +393,11 @@ function filterSubs() {
       (s.notes||'').toLowerCase().includes(q)
     );
   }
+  // CHOOSE rows always sort to the top of the active view so the decision is unmissable
   subs.sort((a, b) => {
+    const ac = isChoose(a.status), bc = isChoose(b.status);
+    if (ac && !bc) return -1;
+    if (bc && !ac) return 1;
     let va = a[sortCol] || '', vb = b[sortCol] || '';
     if (sortCol === 'date_received') { va = va || '0000-00-00'; vb = vb || '0000-00-00'; }
     if (va < vb) return -1 * sortDir;
@@ -338,7 +427,7 @@ async function changeStatus(id, newStatus) {
   if (!sub) return;
 
   const oldStatus = sub.status;
-  sub.status = newStatus; // Optimistic update
+  sub.status = newStatus;
   renderStats();
   renderTable();
   showToast('Saving: ' + sub.brand + ' → ' + newStatus);
@@ -350,7 +439,7 @@ async function changeStatus(id, newStatus) {
 
   if (error) {
     console.error('Error updating status:', error);
-    sub.status = oldStatus; // Rollback
+    sub.status = oldStatus;
     renderStats();
     renderTable();
     showToast('Error saving — reverted');
@@ -364,6 +453,10 @@ function showToast(msg) {
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function escapeHtml(str) {
+  return String(str || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
 function renderTable() {
@@ -382,20 +475,26 @@ function renderTable() {
       </div>`
     ).join('');
     const statusUp = (s.status || '').toUpperCase();
-    const rowCls = (statusUp === 'DECLINED' || statusUp === 'ARCHIVED') ? 'row-declined' : '';
+    const rowCls = (statusUp === 'DECLINED' || statusUp === 'ARCHIVED')
+      ? 'row-declined'
+      : (statusUp === 'CHOOSE' ? 'row-choose' : '');
+    const cc = companyColor(s.company);
+    const companyHtml = s.company
+      ? `<span class="company-pill" style="background:${cc.bg};color:${cc.fg}">${escapeHtml(s.company)}</span>`
+      : '';
     return `<tr class="${rowCls}">
-      <td class="brand-name">${s.brand || ''}</td>
-      <td><span class="company-tag">${s.company || ''}</span></td>
-      <td>${s.rep || ''}</td>
+      <td class="brand-name">${escapeHtml(s.brand)}</td>
+      <td>${companyHtml}</td>
+      <td>${escapeHtml(s.rep)}</td>
       <td>
         <div class="status-dropdown-wrap">
-          <span class="badge ${badgeCls}" onclick="toggleDropdown(${s.id}, event)">${s.status || ''}</span>
+          <span class="badge ${badgeCls}" onclick="toggleDropdown(${s.id}, event)">${escapeHtml(s.status)}</span>
           <div class="status-dropdown" id="dd-${s.id}">${dropdownOptions}</div>
         </div>
       </td>
-      <td class="date-cell">${s.date_received || ''}</td>
-      <td class="date-cell">${s.shoot_dates || '—'}</td>
-      <td class="notes-cell">${s.notes || ''}</td>
+      <td class="date-cell">${escapeHtml(s.date_received)}</td>
+      <td class="date-cell">${s.shoot_dates ? escapeHtml(s.shoot_dates) : '—'}</td>
+      <td class="notes-cell">${escapeHtml(s.notes)}</td>
     </tr>`;
   }).join('');
 }
