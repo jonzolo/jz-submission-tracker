@@ -108,10 +108,10 @@
     50% { box-shadow: 0 0 0 5px rgba(245,158,11,0); }
   }
   .badge-active { background: #fff8c5; color: #9a6700; }
-  .badge-submitted { background: #fbefff; color: #8250df; }
+  .badge-submitted { background: #cffafe; color: #0e7490; }
   .badge-chemistry { background: #ffeff7; color: #bf3989; }
   .badge-treatment { background: #fff1e5; color: #bc4c00; }
-  .badge-pitching { background: #fbefff; color: #6f42c1; }
+  .badge-pitching { background: #e0e7ff; color: #3730a3; }
   .badge-won { background: #dafbe1; color: #1a7f37; }
   .badge-production { background: #dafbe1; color: #116329; }
   .badge-lost { background: #ffebe9; color: #cf222e; }
@@ -123,11 +123,12 @@
   .dsub-potential { color: var(--yellow); }
   .dsub-no { color: var(--text-dim); }
 
-  /* Color-coded company pill — tinted bg + matching dark text */
-  .company-pill {
-    display: inline-block; font-size: 11px; font-weight: 600;
-    padding: 2px 10px; border-radius: 12px; white-space: nowrap;
-    letter-spacing: 0.2px;
+  /* Quieter company treatment — small colored dot + plain text.
+     Status pill is the loud signal; company is identifying but secondary. */
+  .company-name { font-size: 13px; color: var(--text); white-space: nowrap; }
+  .company-dot {
+    display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+    margin-right: 7px; vertical-align: -1px; flex-shrink: 0;
   }
 
   .notes-cell { max-width: 320px; font-size: 13px; color: var(--text-dim); line-height: 1.4; }
@@ -222,8 +223,8 @@ const ALL_STATUSES = [
   { value: 'NEW', label: 'New', color: '#0969da' },
   { value: 'CHOOSE', label: 'Choose! (parallel sub)', color: '#f59e0b' },
   { value: 'ACTIVE', label: 'Active', color: '#9a6700' },
-  { value: 'SUBMITTED', label: 'Submitted', color: '#8250df' },
-  { value: 'PITCHING', label: 'Pitching', color: '#6f42c1' },
+  { value: 'SUBMITTED', label: 'Submitted', color: '#0e7490' },
+  { value: 'PITCHING', label: 'Pitching', color: '#3730a3' },
   { value: 'CHEMISTRY CALL', label: 'Chemistry Call', color: '#bf3989' },
   { value: 'TREATMENT DELIVERED', label: 'Treatment Delivered', color: '#bc4c00' },
   { value: 'WON', label: 'Won', color: '#1a7f37' },
@@ -480,7 +481,7 @@ function renderTable() {
       : (statusUp === 'CHOOSE' ? 'row-choose' : '');
     const cc = companyColor(s.company);
     const companyHtml = s.company
-      ? `<span class="company-pill" style="background:${cc.bg};color:${cc.fg}">${escapeHtml(s.company)}</span>`
+      ? `<span class="company-name"><span class="company-dot" style="background:${cc.bg}"></span>${escapeHtml(s.company)}</span>`
       : '';
     return `<tr class="${rowCls}">
       <td class="brand-name">${escapeHtml(s.brand)}</td>
