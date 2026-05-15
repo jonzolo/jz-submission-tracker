@@ -52,6 +52,26 @@
   .stat.hot .num { color: var(--orange); }
   .stat.choose .num { color: #b45309; }
   .stat.choose { border-color: #f59e0b; background: #fffbeb; }
+
+  /* Parallel-sub guardrail banner — shows when 2+ active rows share a brand and any isn't CHOOSE */
+  .parallel-alert {
+    margin: 0 0 16px 0; padding: 14px 18px;
+    background: repeating-linear-gradient(45deg, #fef2f2, #fef2f2 12px, #fee2e2 12px, #fee2e2 24px);
+    border: 2px solid #dc2626; border-radius: 8px;
+    color: #7f1d1d; font-size: 14px; line-height: 1.5;
+    display: flex; align-items: flex-start; gap: 14px;
+  }
+  .parallel-alert.hidden { display: none; }
+  .parallel-alert .pa-icon { font-size: 22px; flex-shrink: 0; }
+  .parallel-alert .pa-body { flex: 1; }
+  .parallel-alert .pa-title { font-weight: 700; margin-bottom: 4px; }
+  .parallel-alert .pa-group { margin: 6px 0; }
+  .parallel-alert .pa-fix {
+    background: #dc2626; color: white; border: none; border-radius: 6px;
+    padding: 6px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+    margin-left: 10px;
+  }
+  .parallel-alert .pa-fix:hover { background: #991b1b; }
   .stat.won .num { color: var(--green); }
   .stat.lost .num { color: var(--red); }
   .stat.total .num { color: var(--accent); }
@@ -178,6 +198,8 @@
 </div>
 
 <div class="stats" id="statsBar"></div>
+
+<div class="parallel-alert hidden" id="parallelAlert"></div>
 
 <div class="filters">
   <label>Filter:</label>
@@ -329,6 +351,7 @@ async function loadData() {
   submissions = data || [];
   document.getElementById('updateTime').textContent = new Date().toLocaleString();
   renderStats();
+  renderParallelAlert();
   renderTable();
 }
 
@@ -354,6 +377,88 @@ function isChoose(s) { return (s||'').toUpperCase() === 'CHOOSE'; }
 function isActive(s) {
   const u = (s||'').toUpperCase();
   return ['NEW','CHOOSE','ACTIVE','SUBMITTED','CHEMISTRY CALL','TREATMENT DELIVERED','PITCHING'].includes(u);
+}
+
+// Normalize brand for collision detection: lowercase, strip parenthetical qualifiers,
+// strip fiscal-year tags (FY26/FY27), trim punctuation/whitespace.
+function normalizeBrand(b) {
+  return String(b || '')
+    .toLowerCase()
+    .replace(/\bfy\s*\d{2,4}\b/g, '')        // FY27, FY 27, FY2027
+    .replace(/\([^)]*\)/g, '')               // (Parker Posey), (June 18)
+    .replace(/[^a-z0-9]+/g, ' ')             // punctuation → space
+    .trim();
+}
+
+// Detect brand collisions in active rows. Returns array of groups, each
+// { key, brand, rows: [...] }. Only includes groups where the rule is violated
+// (i.e., at least one row in the group is NOT in CHOOSE status).
+function detectParallelMismatch() {
+  const buckets = {};
+  for (const s of submissions) {
+    if (!isActive(s.status)) continue;
+    const k = normalizeBrand(s.brand);
+    if (!k) continue;
+    (buckets[k] = buckets[k] || []).push(s);
+  }
+  const groups = [];
+  for (const k of Object.keys(buckets)) {
+    const rows = buckets[k];
+    if (rows.length < 2) continue;
+    const anyNotChoose = rows.some(r => !isChoose(r.status));
+    if (anyNotChoose) groups.push({ key: k, brand: rows[0].brand, rows });
+  }
+  return groups;
+}
+
+async function flipGroupToChoose(ids) {
+  const targets = submissions.filter(s => ids.includes(s.id) && !isChoose(s.status));
+  if (targets.length === 0) return;
+  showToast('Flipping ' + targets.length + ' rows to CHOOSE...');
+  // Optimistic
+  targets.forEach(t => t.status = 'CHOOSE');
+  renderStats(); renderParallelAlert(); renderTable();
+  const now = new Date().toISOString();
+  const results = await Promise.all(targets.map(t =>
+    sb.from('submissions').update({ status: 'CHOOSE', updated_at: now }).eq('id', t.id)
+  ));
+  const failed = results.filter(r => r.error);
+  if (failed.length) {
+    showToast('Error on ' + failed.length + ' rows — reloading');
+    await loadData();
+  } else {
+    showToast('All ' + targets.length + ' rows set to CHOOSE');
+  }
+}
+
+function renderParallelAlert() {
+  const alertEl = document.getElementById('parallelAlert');
+  if (!alertEl) return;
+  const groups = detectParallelMismatch();
+  if (groups.length === 0) { alertEl.classList.add('hidden'); alertEl.innerHTML = ''; return; }
+  const groupHtml = groups.map(g => {
+    const idList = g.rows.map(r => r.id);
+    const rowLines = g.rows.map(r =>
+      `<div>&nbsp;&nbsp;&nbsp;&nbsp;#${r.id} <b>${escapeHtml(r.status)}</b> &mdash; ${escapeHtml(r.company || '?')} (${escapeHtml(r.rep || '?')})</div>`
+    ).join('');
+    return `<div class="pa-group">
+      <div><b>${escapeHtml(g.brand)}</b> &mdash; ${g.rows.length} active rows
+        <button class="pa-fix" onclick="flipGroupToChoose([${idList.join(',')}])">Flip all to CHOOSE</button>
+      </div>
+      ${rowLines}
+    </div>`;
+  }).join('');
+  const title = groups.length === 1
+    ? 'Parallel-sub detected &mdash; not all rows are CHOOSE'
+    : groups.length + ' parallel-sub conflicts &mdash; not all rows are CHOOSE';
+  alertEl.classList.remove('hidden');
+  alertEl.innerHTML = `
+    <div class="pa-icon">&#9888;</div>
+    <div class="pa-body">
+      <div class="pa-title">${title}</div>
+      <div>2+ active rows share the same brand. Per the parallel-sub rule, all of them must be <b>CHOOSE</b> until JZ picks one.</div>
+      ${groupHtml}
+    </div>`;
 }
 function isWon(s) { const u = (s||'').toUpperCase(); return u === 'WON' || u === 'WON / IN PRODUCTION' || u === 'IN PRODUCTION'; }
 function isLost(s) { const u = (s||'').toUpperCase(); return u === 'LOST'; }
@@ -442,10 +547,12 @@ async function changeStatus(id, newStatus) {
     console.error('Error updating status:', error);
     sub.status = oldStatus;
     renderStats();
+    renderParallelAlert();
     renderTable();
     showToast('Error saving — reverted');
   } else {
     showToast('Saved: ' + sub.brand + ' → ' + newStatus);
+    renderParallelAlert();
   }
 }
 
