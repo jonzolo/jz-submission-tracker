@@ -111,6 +111,20 @@
   tr.row-declined:hover td { opacity: 0.75; }
   tr.row-choose td { background: rgba(254, 243, 199, 0.35); }
   tr.row-choose:hover td { background: rgba(254, 243, 199, 0.6); }
+  /* Archived project you were actually submitted on (chosen rep): keep it readable, not dimmed */
+  tr.row-archived-chosen td { opacity: 1; background: rgba(26, 127, 55, 0.04); }
+  tr.row-archived-chosen:hover td { background: rgba(26, 127, 55, 0.08); }
+  .submitted-marker {
+    display: inline-block; margin-top: 6px; padding: 2px 9px;
+    background: #dafbe1; color: #1a7f37; border: 1px solid #1a7f37;
+    border-radius: 10px; font-size: 10px; font-weight: 700;
+    letter-spacing: 0.3px; white-space: nowrap;
+  }
+  .search-scope {
+    font-size: 12px; color: var(--accent); margin: -8px 0 16px auto;
+    width: 100%; text-align: right;
+  }
+  .search-scope.hidden { display: none; }
 
   .badge {
     display: inline-block; padding: 2px 10px; border-radius: 12px;
@@ -210,8 +224,9 @@
   <button class="filter-btn" data-filter="declined">Declined</button>
   <button class="filter-btn" data-filter="archived">Archived</button>
   <button class="filter-btn" data-filter="all">All</button>
-  <input type="text" class="search-box" id="searchBox" placeholder="Search brand, company...">
+  <input type="text" class="search-box" id="searchBox" placeholder="Search all statuses...">
 </div>
+<div class="search-scope hidden" id="searchScope"></div>
 
 <div class="table-wrap">
   <table>
@@ -460,6 +475,18 @@ function renderParallelAlert() {
       ${groupHtml}
     </div>`;
 }
+// For an ARCHIVED row, was JZ actually submitted (i.e. this is the rep he chose),
+// vs. a rep he passed on (parallel-sub loser / decline)? Inferred from notes:
+// declines say "saw it already / loser / someone else got to me"; submitted-then-dead
+// rows carry acceptance ("let's try" / "yes") or were auto-archived on 14-day silence.
+function archivedWasSubmitted(s) {
+  if ((s.status || '').toUpperCase() !== 'ARCHIVED') return false;
+  const n = (s.notes || '').toLowerCase();
+  const passed = /parallel-sub loser|duplicate of|\bdeclined\b|saw it already|already saw|already got|got to me|someone else|got it a few|saw it a couple|saw it yesterday|approached by another|another co\b|off-platform/.test(n);
+  if (passed) return false;
+  const chosen = /let'?s try|lets try|put me up|feel free to (submit|put)|please feel free|confirmed submitting|sent .*reels|jz yes|14[\s-]?d(?:ay)?\s*silen|auto-?archived/.test(n);
+  return chosen;
+}
 function isWon(s) { const u = (s||'').toUpperCase(); return u === 'WON' || u === 'WON / IN PRODUCTION' || u === 'IN PRODUCTION'; }
 function isLost(s) { const u = (s||'').toUpperCase(); return u === 'LOST'; }
 function isDeclined(s) { const u = (s||'').toUpperCase(); return u === 'DECLINED' || u === 'PASSED'; }
@@ -484,19 +511,25 @@ function renderStats() {
 
 function filterSubs() {
   let subs = [...submissions];
-  if (currentFilter === 'active') subs = subs.filter(s => isActive(s.status));
-  else if (currentFilter === 'choose') subs = subs.filter(s => isChoose(s.status));
-  else if (currentFilter === 'won') subs = subs.filter(s => isWon(s.status));
-  else if (currentFilter === 'lost') subs = subs.filter(s => isLost(s.status));
-  else if (currentFilter === 'declined') subs = subs.filter(s => isDeclined(s.status));
-  else if (currentFilter === 'archived') subs = subs.filter(s => isArchived(s.status));
-  if (currentSearch) {
+  const searching = (currentSearch || '').trim() !== '';
+  // When searching, ignore the active filter chip — search spans EVERY status
+  // (active, won, lost, declined, archived) so one box finds anything, anywhere.
+  if (!searching) {
+    if (currentFilter === 'active') subs = subs.filter(s => isActive(s.status));
+    else if (currentFilter === 'choose') subs = subs.filter(s => isChoose(s.status));
+    else if (currentFilter === 'won') subs = subs.filter(s => isWon(s.status));
+    else if (currentFilter === 'lost') subs = subs.filter(s => isLost(s.status));
+    else if (currentFilter === 'declined') subs = subs.filter(s => isDeclined(s.status));
+    else if (currentFilter === 'archived') subs = subs.filter(s => isArchived(s.status));
+  }
+  if (searching) {
     const q = currentSearch.toLowerCase();
     subs = subs.filter(s =>
       (s.brand||'').toLowerCase().includes(q) ||
       (s.company||'').toLowerCase().includes(q) ||
       (s.rep||'').toLowerCase().includes(q) ||
-      (s.notes||'').toLowerCase().includes(q)
+      (s.notes||'').toLowerCase().includes(q) ||
+      (s.status||'').toLowerCase().includes(q)
     );
   }
   // CHOOSE rows always sort to the top of the active view so the decision is unmissable
@@ -570,6 +603,15 @@ function escapeHtml(str) {
 function renderTable() {
   const subs = filterSubs();
   const tbody = document.getElementById('tableBody');
+  const scopeEl = document.getElementById('searchScope');
+  if (scopeEl) {
+    if ((currentSearch || '').trim() !== '') {
+      scopeEl.classList.remove('hidden');
+      scopeEl.textContent = `Searching all statuses for “${currentSearch.trim()}” — ${subs.length} match${subs.length === 1 ? '' : 'es'}`;
+    } else {
+      scopeEl.classList.add('hidden');
+    }
+  }
   if (subs.length === 0) {
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-dim);">No submissions match your filter.</td></tr>';
     return;
@@ -583,9 +625,15 @@ function renderTable() {
       </div>`
     ).join('');
     const statusUp = (s.status || '').toUpperCase();
-    const rowCls = (statusUp === 'DECLINED' || statusUp === 'ARCHIVED')
-      ? 'row-declined'
-      : (statusUp === 'CHOOSE' ? 'row-choose' : '');
+    const chosenArch = statusUp === 'ARCHIVED' && archivedWasSubmitted(s);
+    const rowCls = chosenArch
+      ? 'row-archived-chosen'
+      : (statusUp === 'DECLINED' || statusUp === 'ARCHIVED')
+        ? 'row-declined'
+        : (statusUp === 'CHOOSE' ? 'row-choose' : '');
+    const submittedMarker = chosenArch
+      ? `<div class="submitted-marker">&#10003; Submitted via ${escapeHtml(s.company || '—')}</div>`
+      : '';
     const cc = companyColor(s.company);
     const companyHtml = s.company
       ? `<span class="company-name"><span class="company-dot" style="background:${cc.bg}"></span>${escapeHtml(s.company)}</span>`
@@ -599,6 +647,7 @@ function renderTable() {
           <span class="badge ${badgeCls}" onclick="toggleDropdown(${s.id}, event)">${escapeHtml(s.status)}</span>
           <div class="status-dropdown" id="dd-${s.id}">${dropdownOptions}</div>
         </div>
+        ${submittedMarker}
       </td>
       <td class="date-cell">${escapeHtml(s.date_received)}</td>
       <td class="date-cell">${s.shoot_dates ? escapeHtml(s.shoot_dates) : '—'}</td>
