@@ -259,14 +259,9 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const ALL_STATUSES = [
   { value: 'NEW', label: 'New', color: '#0969da' },
   { value: 'CHOOSE', label: 'Choose! (parallel sub)', color: '#f59e0b' },
-  { value: 'ACTIVE', label: 'Active', color: '#9a6700' },
   { value: 'SUBMITTED', label: 'Submitted', color: '#0e7490' },
   { value: 'PITCHING', label: 'Pitching', color: '#3730a3' },
-  { value: 'CHEMISTRY CALL', label: 'Chemistry Call', color: '#bf3989' },
-  { value: 'TREATMENT DELIVERED', label: 'Treatment Delivered', color: '#bc4c00' },
   { value: 'WON', label: 'Won', color: '#1a7f37' },
-  { value: 'WON / IN PRODUCTION', label: 'Won / In Production', color: '#116329' },
-  { value: 'IN PRODUCTION', label: 'In Production', color: '#116329' },
   { value: 'LOST', label: 'Lost', color: '#cf222e' },
   { value: 'DECLINED', label: 'Declined', color: '#656d76' },
   { value: 'ARCHIVED', label: 'Archived', color: '#57606a' },
@@ -374,24 +369,19 @@ function getBadgeClass(status) {
   const s = (status || '').toUpperCase();
   if (s === 'NEW') return 'badge-new';
   if (s === 'CHOOSE') return 'badge-choose';
-  if (s === 'ACTIVE') return 'badge-active';
   if (s === 'SUBMITTED') return 'badge-submitted';
   if (s === 'PITCHING') return 'badge-pitching';
-  if (s.includes('CHEMISTRY')) return 'badge-chemistry';
-  if (s.includes('TREATMENT')) return 'badge-treatment';
-  if (s === 'WON' || s === 'WON / IN PRODUCTION') return 'badge-won';
-  if (s === 'IN PRODUCTION') return 'badge-production';
+  if (s === 'WON') return 'badge-won';
   if (s === 'LOST') return 'badge-lost';
   if (s === 'DECLINED') return 'badge-declined';
   if (s === 'ARCHIVED') return 'badge-archived';
-  if (s === 'PASSED') return 'badge-passed';
   return 'badge-active';
 }
 
 function isChoose(s) { return (s||'').toUpperCase() === 'CHOOSE'; }
 function isActive(s) {
   const u = (s||'').toUpperCase();
-  return ['NEW','CHOOSE','ACTIVE','SUBMITTED','CHEMISTRY CALL','TREATMENT DELIVERED','PITCHING'].includes(u);
+  return ['NEW','CHOOSE','SUBMITTED','PITCHING'].includes(u);
 }
 
 // Normalize brand for collision detection: lowercase, strip parenthetical qualifiers,
@@ -487,9 +477,9 @@ function archivedWasSubmitted(s) {
   const chosen = /let'?s try|lets try|put me up|feel free to (submit|put)|please feel free|confirmed submitting|sent .*reels|jz yes|14[\s-]?d(?:ay)?\s*silen|auto-?archived/.test(n);
   return chosen;
 }
-function isWon(s) { const u = (s||'').toUpperCase(); return u === 'WON' || u === 'WON / IN PRODUCTION' || u === 'IN PRODUCTION'; }
+function isWon(s) { return (s||'').toUpperCase() === 'WON'; }
 function isLost(s) { const u = (s||'').toUpperCase(); return u === 'LOST'; }
-function isDeclined(s) { const u = (s||'').toUpperCase(); return u === 'DECLINED' || u === 'PASSED'; }
+function isDeclined(s) { return (s||'').toUpperCase() === 'DECLINED'; }
 function isArchived(s) { const u = (s||'').toUpperCase(); return u === 'ARCHIVED'; }
 
 function renderStats() {
